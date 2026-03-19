@@ -2,14 +2,6 @@
 
 webscraping work for wellesley polisci
 
-## Notes
-
-- separate files for tour 1 vs. tour 2
-- separate parsing for large vs. small communes (<1000 vs. 1000+)
-- no age data anywhere
-- elections in france have tour 1, and tour 2, not everyone makes it to tour 2 (tour 2 results only has ppl who made it)
-- large communes (1000+ people) vote for lists instead of individuals, candidate's vote # = the vote # of the whole list
-
 ## File structure
 
 - process_less_1000.py: for <1000 communes
@@ -38,3 +30,11 @@ webscraping work for wellesley polisci
         - candidate name, gender, etc. obtained from results files
 
 - read_census.py: parse big census file (not working rn)
+
+## Notes
+
+- separate files for tour 1 vs. tour 2
+- separate parsing for large vs. small communes (<1000 vs. 1000+)
+- no age data anywhere
+- elections in france have tour 1, and tour 2, not everyone makes it to tour 2 (tour 2 results only has ppl who made it)
+- large communes (1000+ people) vote for lists instead of individuals, candidate's vote # = the vote # of the whole list
