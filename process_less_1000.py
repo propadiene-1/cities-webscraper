@@ -1,0 +1,106 @@
+"""
+Notes (process_less_1000.py)
+=========================
+Communes of <1,000 (individual voting)
+One row per candidate.
+Update YEAR and TOUR to adjust
+
+File naming assumptions:
+  results:       {tour_folder}/*communes-de-moins-de-1000*.txt
+  registrations: {year_folder}/candidats*.csv
+
+Elected status checked with results = "Oui"
+Votes are per individual candidate.
+Does not include age.
+"""
+
+from pathlib import Path
+import pandas as pd
+from utils import (
+    to_int, to_float, clean,
+    read_wide_file, extract_commune_metadata, parse_registrations,
+    get_config,
+)
+ 
+# ── Change these two lines to process a different year or tour ────────────────
+YEAR = 2014
+TOUR = 1   # 1 or 2
+ 
+# ── Paths derived from YEAR and TOUR — no need to edit below this line ────────
+BASE_DIR   = Path("/Users/propadiene/cloned-repos/cities-webscraper")
+YEAR_DIR   = BASE_DIR / f"france_{YEAR}"
+TOUR_DIR   = YEAR_DIR / f"tour_{TOUR}"
+ 
+FILE_RESULTS       = next(TOUR_DIR.glob("*moins*1000*.txt"))
+FILE_REGISTRATIONS = next(YEAR_DIR.glob("candidats*.csv"), None)
+OUT_PATH           = YEAR_DIR / f"candidate_outputs/less_1000_tour{TOUR}_{YEAR}.csv"
+ 
+OUTPUT_COLS = [
+    "commune_code", "commune_name",
+    "last_name", "first_name", "gender",
+    "party_code", "votes", "elected",
+]
+ 
+ 
+def parse_results(path: Path, year: int) -> pd.DataFrame:
+    """Unpack wide result file into one row per candidate."""
+    cfg        = get_config(year)
+    n_fixed    = cfg["N_FIXED"]
+    block_size = cfg["BLOCK_SIZE"]
+    block      = cfg["BLOCK_LESS"]
+ 
+    raw = read_wide_file(path, sep=";", year=year)
+    n_blocks = (len(raw.columns) - n_fixed) // block_size
+    print(f"  {len(raw):,} communes × {n_blocks} candidate blocks")
+ 
+    rows = []
+    for _, row in raw.iterrows():
+        commune = extract_commune_metadata(row)
+        for i in range(n_blocks):
+            offset = n_fixed + i * block_size
+            b = [row.iloc[offset + j] if offset + j < len(row) else None
+                 for j in range(block_size)]
+ 
+            last_name = clean(b[block["last_name"]])
+            votes     = to_int(b[block["votes"]])
+            if not last_name and votes is None:
+                continue
+ 
+            rows.append({
+                **commune,
+                "party_code": clean(b[block["party_code"]]),
+                "gender_raw": clean(b[block["gender_raw"]]),
+                "last_name":  last_name.upper() if last_name else None,
+                "first_name": clean(b[block["first_name"]]),
+                "elected":    clean(b[block["elected"]]) == "Oui",
+                "votes":      votes,
+            })
+ 
+    return pd.DataFrame(rows)
+ 
+ 
+if __name__ == "__main__":
+    print(f"Processing less_1000 — {YEAR} tour {TOUR}")
+ 
+    print("  Parsing results...")
+    df_results = parse_results(FILE_RESULTS, YEAR)
+ 
+    if FILE_REGISTRATIONS:
+        print("  Parsing registrations...")
+        df_reg = parse_registrations(FILE_REGISTRATIONS)[["commune_code", "last_name", "gender"]]
+        print("  Joining...")
+        df = df_results.merge(df_reg, on=["commune_code", "last_name"], how="left")
+        df["gender"] = df["gender"].fillna(df["gender_raw"])
+    else:
+        df = df_results.copy()
+        df["gender"] = df["gender_raw"]
+    
+    cols = [c for c in OUTPUT_COLS if c in df.columns]
+    df[cols].sort_values(["commune_code"]).to_csv(
+        OUT_PATH, index=False, encoding="utf-8-sig"
+    )
+    df[cols].sort_values(["commune_code"]).to_json(
+        OUT_PATH.with_suffix(".json"), orient="records", force_ascii=False, indent=2
+    )
+    print(f"  ✓ {len(df):,} candidates → {OUT_PATH}")
+    print(f"    Communes: {df['commune_code'].nunique():,}  |  Elected: {df['elected'].sum():,}")

@@ -1,0 +1,14 @@
+.DS_Store
+__pycache__
+/archive
+
+data/
+*.csv
+*.json
+*.txt
+*.xlsx
+*.xls
+
+*.pyc
+.env
+venv/
