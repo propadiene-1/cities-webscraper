@@ -13,15 +13,15 @@ import pandas as pd
 from pathlib import Path
 
 # ── Point these at your files ─────────────────────────────────────────────────
-OUTPUT_FILE  = Path("/Users/propadiene/cloned-repos/cities-webscraper/france_2020/outputs/plus_1000_tour2_2020.json")
-SOURCE_FILE  = Path("/Users/propadiene/cloned-repos/cities-webscraper/france_2020/tour_2/2020-06-29-resultats-t2-communes-de-1000-hab-et-plus.txt")
+OUTPUT_FILE  = Path("/Users/propadiene/cloned-repos/cities-webscraper/france_2014/candidate_outputs/less_1000_tour2_2014.json")
+SOURCE_FILE  = Path("/Users/propadiene/cloned-repos/cities-webscraper/france_2014/tour_2/muni-2014-resultats-com-1000-et-plus-t2.txt")
 #"/Users/propadiene/cloned-repos/cities-webscraper/france_2020/tour_1/2020-05-18-resultats-communes-de-1000-et-plus.txt"
 SOURCE_SEP   = ";"       # "\t" for tour 1, ";" for tour 2
 COMMUNE_SIZE = "more"     # "more" or "less"
 TOUR = 2
 
 # ── Spot-check this commune ───────────────────────────────────────────────────
-CHECK_COMMUNE = "01034"   # Ambérieu-en-Bugey
+CHECK_COMMUNE = "01004"   # Ambérieu-en-Bugey
 
 
 def load_output(path: Path) -> pd.DataFrame:

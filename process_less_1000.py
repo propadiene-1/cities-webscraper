@@ -24,7 +24,7 @@ from utils import (
  
 # ── Change these two lines to process a different year or tour ────────────────
 YEAR = 2014
-TOUR = 1   # 1 or 2
+TOUR = 2   # 1 or 2
  
 # ── Paths derived from YEAR and TOUR — no need to edit below this line ────────
 BASE_DIR   = Path("/Users/propadiene/cloned-repos/cities-webscraper")
@@ -81,20 +81,40 @@ def parse_results(path: Path, year: int) -> pd.DataFrame:
  
 if __name__ == "__main__":
     print(f"Processing less_1000 — {YEAR} tour {TOUR}")
- 
-    print("  Parsing results...")
-    df_results = parse_results(FILE_RESULTS, YEAR)
- 
-    if FILE_REGISTRATIONS:
+
+    if YEAR == 2014 and TOUR == 1:
+        # tour 1 is already long format — one row per candidate
+        print("  Reading 2014 tour 1 (already long format)...")
+        raw = pd.read_csv(FILE_RESULTS, sep=";", encoding="latin-1", encoding_errors="replace", dtype=str)
+        df = pd.DataFrame({
+            "commune_code": (raw["CODDPT"].str.zfill(2) + raw["CODSUBCOM"].str.zfill(3)),
+            "commune_name": raw["LIBSUBCOM"],
+            "last_name":    raw["NOMPSNEXT"].str.upper(),
+            "first_name":   raw["PREPSN"],
+            "gender":       raw["SEXPSN"],
+            "party_code":   None,
+            "votes":        raw["NBRVOIX"].apply(to_int),
+            "elected":      raw["ELU"] == "Elu",
+    })
+
+    elif YEAR == 2014 and TOUR == 2:
+        # tour 2 uses wide format — same as more_1000 2014
+        print("  Parsing results...")
+        df_results = parse_results(FILE_RESULTS, YEAR)
+        df = df_results.copy()
+        df["gender"] = df["gender_raw"]
+    elif YEAR == 2020:
+        print("  Parsing results...")
+        df_results = parse_results(FILE_RESULTS, YEAR)
         print("  Parsing registrations...")
         df_reg = parse_registrations(FILE_REGISTRATIONS)[["commune_code", "last_name", "gender"]]
         print("  Joining...")
         df = df_results.merge(df_reg, on=["commune_code", "last_name"], how="left")
         df["gender"] = df["gender"].fillna(df["gender_raw"])
+
     else:
-        df = df_results.copy()
-        df["gender"] = df["gender_raw"]
-    
+        raise ValueError(f"No pipeline defined for year {YEAR}. Add one above.")
+
     cols = [c for c in OUTPUT_COLS if c in df.columns]
     df[cols].sort_values(["commune_code"]).to_csv(
         OUT_PATH, index=False, encoding="utf-8-sig"

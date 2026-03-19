@@ -28,7 +28,7 @@ from utils import (
  
 # ── Change these two lines to process a different year or tour ────────────────
 YEAR = 2014
-TOUR = 1  # 1 or 2
+TOUR = 2  # 1 or 2
  
 # ── Paths derived from YEAR and TOUR — no need to edit below this line ────────
 BASE_DIR   = Path("/Users/propadiene/cloned-repos/cities-webscraper")

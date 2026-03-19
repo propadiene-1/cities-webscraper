@@ -20,88 +20,92 @@ Update ELECTION_FILE, CENSUS_FILE, OUT_FILE to adjust.
 import pandas as pd
 from pathlib import Path
 
+# ── Change these to switch census vintage ─────────────────────────────────────
+CENSUS_YEAR = "16"   # 2-digit year: "06", "11", "16", "22"
+INCOME_YEAR = "16"   # income data year: "06", "11", "16", "21"
+
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR      = Path("/Users/propadiene/cloned-repos/cities-webscraper")
-ELECTION_FILE = BASE_DIR / "france_2020/candidate_outputs/less_1000_tour1_2020.csv"
+ELECTION_FILE = BASE_DIR / "france_2014/candidate_outputs/less_1000_tour1_2014.csv"
 CENSUS_FILE   = BASE_DIR / "france_census/dossier_complet.csv"
-OUT_FILE      = BASE_DIR / "france_2020/joined_outputs/joined_less_1000_tour1_2020.csv"
+OUT_FILE      = BASE_DIR / "france_joined_outputs/france_joined_2014/joined_less_1000_tour1_2014.csv"
+
+# ── Census columns (auto-built from CENSUS_YEAR prefix) ───────────────────────
+p = f"P{CENSUS_YEAR}_"   # e.g. "P22_"
 
 CENSUS_COLS = [
     "CODGEO",
 
-    "P22_POP", #population
+    f"{p}POP",              # total population
 
-    "P22_POPH",         # gender- male population
-    "P22_POPF",         # gender- female population
+    f"{p}POPH",             # gender — male
+    f"{p}POPF",             # gender — female
 
-    "P22_POP0014", #age structure
-    "P22_POP1529",
-    "P22_POP3044",
-    "P22_POP4559",
-    "P22_POP6074",
-    "P22_POP7589",
-    "P22_POP90P",
+    f"{p}POP0014",          # age structure
+    f"{p}POP1529",
+    f"{p}POP3044",
+    f"{p}POP4559",
+    f"{p}POP6074",
+    f"{p}POP7589",
+    f"{p}POP90P",
 
-    #education (population 15+ by highest diploma)
-    "P22_NSCOL15P",         # total non-students 15+
-    "P22_NSCOL15P_DIPLMIN", # no diploma or minimum
-    "P22_NSCOL15P_BEPC",    # BEPC / brevet
-    "P22_NSCOL15P_CAPBEP",  # vocational (CAP/BEP)
-    "P22_NSCOL15P_BAC",     # baccalauréat
-    "P22_NSCOL15P_SUP2",    # 2-year higher education (BTS/DUT)
-    "P22_NSCOL15P_SUP34",   # 3-4 year higher education (licence/master)
-    "P22_NSCOL15P_SUP5",    # 5+ year higher education (grande école/PhD)
+    f"{p}NSCOL15P",         # total non-students 15+
+    f"{p}NSCOL15P_CAPBEP",  # vocational
+    f"{p}NSCOL15P_BAC",     # baccalauréat
+    f"{p}NSCOL15P_SUP",     # any higher education (note: 2022 splits this into SUP2/SUP34/SUP5)
+    f"{p}NSCOL15P_SUP2",    # 2022 only
+    f"{p}NSCOL15P_SUP34",   # 2022 only
+    f"{p}NSCOL15P_SUP5",    # 2022 only
 
-    #unemployment
-    "P22_CHOM1564",     # unemployed aged 15-64
-    "P22_ACT1564",      # active population 15-64 (denominator for unemployment rate)
+    f"{p}CHOM1564",         # unemployed 15-64
+    f"{p}ACT1564",          # active population 15-64 (denominator)
 
-    #nationality (foreign nationality/immigrant- closest available proxy to ethnicity)
-    "P22_POP_ETRG" if "P22_POP_ETRG" in [] else None,  # checked below
+    f"{p}POP_ETRG",         # foreign nationals — ethnicity proxy (may not exist)
 
-    "MED21",            # median income per consumption unit (2021)
-    "TP6021",           # poverty rate (% below 60% median income, 2021)
+    f"MED{INCOME_YEAR}",    # median income
+    f"TP60{INCOME_YEAR}",   # poverty rate
 ]
-
-#remove None entries (placeholder for columns we'll check at runtime)
-CENSUS_COLS = [c for c in CENSUS_COLS if c is not None]
 
 
 def compute_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Compute percentage statistics from raw census counts
-    """
-    pop = df["P22_POP"].replace(0, float("nan"))
-    edu = df["P22_NSCOL15P"].replace(0, float("nan"))
-    act = df["P22_ACT1564"].replace(0, float("nan"))
+    """Compute percentage statistics from raw census counts."""
+    pop = df[f"{p}POP"].replace(0, float("nan"))
+    edu = df[f"{p}NSCOL15P"].replace(0, float("nan"))
+    act = df[f"{p}ACT1564"].replace(0, float("nan"))
 
-    df["pct_female"]      = df["P22_POPF"]  / pop * 100 #gender
-    df["pct_male"]        = df["P22_POPH"]  / pop * 100
+    df["pct_female"]      = df[f"{p}POPF"] / pop * 100
+    df["pct_male"]        = df[f"{p}POPH"] / pop * 100
 
-    df["pct_age_0_14"]    = df["P22_POP0014"] / pop * 100 #age
-    df["pct_age_15_29"]   = df["P22_POP1529"] / pop * 100
-    df["pct_age_30_44"]   = df["P22_POP3044"] / pop * 100
-    df["pct_age_45_59"]   = df["P22_POP4559"] / pop * 100
-    df["pct_age_60_74"]   = df["P22_POP6074"] / pop * 100
-    df["pct_age_75_plus"] = (df["P22_POP7589"] + df["P22_POP90P"]) / pop * 100
+    df["pct_age_0_14"]    = df[f"{p}POP0014"] / pop * 100
+    df["pct_age_15_29"]   = df[f"{p}POP1529"] / pop * 100
+    df["pct_age_30_44"]   = df[f"{p}POP3044"] / pop * 100
+    df["pct_age_45_59"]   = df[f"{p}POP4559"] / pop * 100
+    df["pct_age_60_74"]   = df[f"{p}POP6074"] / pop * 100
+    df["pct_age_75_plus"] = (df[f"{p}POP7589"] + df[f"{p}POP90P"]) / pop * 100
 
-    df["pct_edu_none"]        = df["P22_NSCOL15P_DIPLMIN"] / edu * 100 #education
-    df["pct_edu_bepc"]        = df["P22_NSCOL15P_BEPC"]    / edu * 100
-    df["pct_edu_vocational"]  = df["P22_NSCOL15P_CAPBEP"]  / edu * 100
-    df["pct_edu_bac"]         = df["P22_NSCOL15P_BAC"]     / edu * 100
-    df["pct_edu_higher_2yr"]  = df["P22_NSCOL15P_SUP2"]    / edu * 100
-    df["pct_edu_higher_34yr"] = df["P22_NSCOL15P_SUP34"]   / edu * 100
-    df["pct_edu_higher_5yr"]  = df["P22_NSCOL15P_SUP5"]    / edu * 100
+    df["pct_edu_vocational"] = df[f"{p}NSCOL15P_CAPBEP"] / edu * 100
+    df["pct_edu_bac"]        = df[f"{p}NSCOL15P_BAC"]    / edu * 100
+    
+    if f"{p}NSCOL15P_SUP" in df.columns:
+            df["pct_edu_higher"] = df[f"{p}NSCOL15P_SUP"] / edu * 100
+    else:
+        df["pct_edu_higher"] = ( #for 2022 sum the three higher education levels
+            df[f"{p}NSCOL15P_SUP2"].fillna(0) +
+            df[f"{p}NSCOL15P_SUP34"].fillna(0) +
+            df[f"{p}NSCOL15P_SUP5"].fillna(0)
+        ) / edu * 100
 
-    df["pct_unemployed"]  = df["P22_CHOM1564"] / act * 100 #unemployment
+    df["pct_unemployed"] = df[f"{p}CHOM1564"] / act * 100
 
-    if "P22_POP_ETRG" in df.columns: #foreign nationals (ethnicity)
-        df["pct_foreign_nationals"] = df["P22_POP_ETRG"] / pop * 100
+    if f"{p}POP_ETRG" in df.columns:
+        df["pct_foreign_nationals"] = df[f"{p}POP_ETRG"] / pop * 100
 
     return df.round(2)
 
 
 if __name__ == "__main__":
+    print(f"Census year: 20{CENSUS_YEAR} | Income year: 20{INCOME_YEAR}")
+
     print("Loading election data...")
     elections = pd.read_csv(ELECTION_FILE, dtype={"commune_code": str})
     print(f"  {len(elections):,} candidates, {elections['commune_code'].nunique():,} communes")
@@ -109,46 +113,36 @@ if __name__ == "__main__":
     print("Loading census data...")
     census_raw = pd.read_csv(
         CENSUS_FILE, sep=";", dtype={"CODGEO": str},
+        usecols=lambda col: col in CENSUS_COLS,
         low_memory=False, on_bad_lines="skip"
     )
-    print(f"  {len(census_raw):,} communes in census file")
-    print(f"  {len(census_raw.columns):,} columns available")
+    print(f"  {len(census_raw):,} communes loaded")
 
-    available = [c for c in CENSUS_COLS if c in census_raw.columns] #check if cols exist
-    missing   = [c for c in CENSUS_COLS if c not in census_raw.columns]
+    missing = [c for c in CENSUS_COLS if c not in census_raw.columns]
     if missing:
         print(f"  Note: {len(missing)} columns not found and skipped: {missing}")
 
-    census = census_raw[available].copy()
-
     print("Merging...")
-    merged = elections.merge(
-        census,
-        left_on="commune_code",
-        right_on="CODGEO",
-        how="left",
-    )
+    merged = elections.merge(census_raw, left_on="commune_code", right_on="CODGEO", how="left")
 
-    matched = merged["P22_POP"].notna().sum() #check match rate (validation)
-    print(f"  Matched: {matched:,} / {len(merged):,} candidates ({matched/len(merged)*100:.1f}%)")
+    matched = merged[f"{p}POP"].notna().sum()
+    print(f"  Matched: {matched:,} / {len(merged):,} ({matched/len(merged)*100:.1f}%)")
 
-    print("Computing derived percentage columns...")
+    unmatched = merged[merged[f"{p}POP"].isna()]["commune_code"].unique()
+    if len(unmatched) > 0:
+        print(f"  Unmatched communes: {len(unmatched)} — sample: {unmatched[:5]}")
+
+    print("Computing derived percentages...")
     merged = compute_derived_columns(merged)
 
-    #drop raw counts (keep only % and totals)
-    raw_cols_to_drop = [
-        c for c in available
-        if c != "CODGEO" and c not in ("P22_POP", "MED21", "TP6021")
-    ]
-    merged = merged.drop(columns=raw_cols_to_drop, errors="ignore")
-    merged = merged.drop(columns=["CODGEO"], errors="ignore") #drop merge key
+    # Drop raw counts — keep only percentages + total pop + income
+    keep = {"CODGEO", f"{p}POP", f"MED{INCOME_YEAR}", f"TP60{INCOME_YEAR}"}
+    raw_to_drop = [c for c in census_raw.columns if c not in keep]
+    merged = merged.drop(columns=raw_to_drop + ["CODGEO"], errors="ignore")
 
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     merged.to_csv(OUT_FILE, index=False, encoding="utf-8-sig")
-    merged.to_json(
-        OUT_FILE.with_suffix(".json"),
-        orient="records", force_ascii=False, indent=2
-    )
+    merged.to_json(OUT_FILE.with_suffix(".json"), orient="records", force_ascii=False, indent=2)
 
     print(f"\n✓ {len(merged):,} rows → {OUT_FILE}")
-    print(f"  Final columns: {list(merged.columns)}")
+    print(f"  Columns: {list(merged.columns)}")
