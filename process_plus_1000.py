@@ -26,11 +26,11 @@ from utils import (
     get_config,
 )
  
-# ── Change these two lines to process a different year or tour ────────────────
-YEAR = 2014
-TOUR = 2  # 1 or 2
+# --- Adjust year/tour ------
+YEAR = 2020
+TOUR = 1  # 1 or 2
  
-# ── Paths derived from YEAR and TOUR — no need to edit below this line ────────
+# --- Not adjusted ------
 BASE_DIR   = Path("/Users/propadiene/cloned-repos/cities-webscraper")
 YEAR_DIR   = BASE_DIR / f"france_{YEAR}"
 TOUR_DIR   = YEAR_DIR / f"tour_{TOUR}"
@@ -49,7 +49,7 @@ OUTPUT_COLS = [
  
 def parse_results(path: Path, year: int) -> pd.DataFrame:
     """Unpack wide result file into one row per list."""
-    # Auto-detect separator — tour 1 uses tabs, tour 2 uses semicolons
+    # detect separator-- tabs for tour 1 2014, semicolons for all others
     with open(path, encoding="latin-1") as f:
         first_line = f.readline()
     sep = ";" if first_line.count(";") > first_line.count("\t") else "\t"
@@ -59,10 +59,7 @@ def parse_results(path: Path, year: int) -> pd.DataFrame:
     block_size = cfg["BLOCK_SIZE"]
     block      = cfg["BLOCK_MORE"]
 
-    print(f"  Detected separator: {repr(sep)}")
     raw = read_wide_file(path, sep=sep, year=year)
-    print("\n  DEBUG raw first row commune fields:")
-    print(raw[["department_code", "commune_code", "commune_name"]].head(3).to_string())
     n_blocks = (len(raw.columns) - n_fixed) // block_size
     print(f"  {len(raw):,} communes × {n_blocks} list blocks")
  
@@ -108,6 +105,7 @@ if __name__ == "__main__":
         df = df_reg.merge(df_lists, on=["commune_code", "list_number"], how="left")
         df = df[df["votes"].notna()]
         df["votes"] = df["votes"].astype(int)
+        df["seats_won"] = pd.to_numeric(df["seats_won"], errors="coerce").astype("Int64")
         df["elected"] = df["list_rank"] <= df["seats_won"]
         df["gender"]  = df["gender"].fillna(df["gender_raw"])
         sort_cols = ["commune_code", "list_number", "list_rank"]
@@ -115,12 +113,15 @@ if __name__ == "__main__":
         print("  No registrations — list-head output, elected = seats_won > 0")
         df = df_lists[df_lists["votes"].notna()].copy()
         df["votes"] = df["votes"].astype(int)
-        df["elected"] = df["seats_won"].apply(lambda x: x > 0 if x is not None else False)
+        df["elected"] = df["seats_won"].apply(lambda x: x > 0 if x is not None else False) #because only list heads are in the dataset
         df["gender"]  = df["gender_raw"]
         sort_cols = ["commune_code", "list_number"]
 
+    df["elected"] = df["elected"].fillna(False).astype(bool)
+
     cols = [c for c in OUTPUT_COLS if c in df.columns]
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     df.sort_values(sort_cols)[cols].to_csv(OUT_PATH, index=False, encoding="utf-8-sig")
     df.sort_values(sort_cols)[cols].to_json(OUT_PATH.with_suffix(".json"), orient="records", force_ascii=False, indent=2)
-    print(f"  ✓ {len(df):,} rows → {OUT_PATH}")
+    print(f"DONE:    {len(df):,} rows → {OUT_PATH}")
     print(f"    Communes: {df['commune_code'].nunique():,}  |  Elected: {df['elected'].sum():,}")

@@ -1,5 +1,5 @@
 """
-utils.py — shared helpers for French municipal election processing.
+utils.py — helper functions for election processing
 """
 
 import numpy as np
@@ -28,11 +28,13 @@ def clean(v):
 
 
 def pad_commune_code(v):
-    return str(v).strip().zfill(5)
+    s = str(v).strip()
+    if "SR" in s: 
+        return s #excluding PLM
+    return s.zfill(5)
 
 
-# ── Year-specific file format configs ────────────────────────────────────────
-# Each election year has slightly different column counts and block layouts.
+# --- File format configs for each election years --------
 # N_FIXED    = number of fixed commune-level columns before candidate blocks start
 # BLOCK_SIZE = number of columns per candidate/list block
 # COMMUNE_COLS = names for the fixed columns (must match N_FIXED in length)
@@ -50,7 +52,7 @@ YEAR_CONFIGS = {
             "null_votes", "pct_null_of_registered", "pct_null_of_voters",
             "valid_votes", "pct_valid_of_registered", "pct_valid_of_voters",
         ],
-        # Block layout for more_1000 (list-level)
+        # Block layout for plus_1000 (list-level)
         "BLOCK_MORE": {
             "list_number": 0,
             "party_code":  1,
@@ -101,7 +103,7 @@ YEAR_CONFIGS = {
     },
 }
 
-# For 2008, add when you have sample files to verify the layout
+# add new config for 2008
 # YEAR_CONFIGS[2008] = { ... }
 
 
@@ -114,24 +116,39 @@ def get_config(year: int) -> dict:
 
 def read_wide_file(path: Path, sep: str, year: int) -> pd.DataFrame:
     cfg = get_config(year)
-    # Skip the header row and read without column names — this forces pandas
-    # to determine column count from the data rows, not the header.
-    # The header row only contains 18 + 1 block of columns, so if we used it,
-    # pandas would truncate rows that have 2, 3, 4+ list blocks.
-    df = pd.read_csv(path, sep=sep, encoding="latin-1",
-                     dtype=str, low_memory=False, on_bad_lines="skip",
-                     header=None, skiprows=1)
     n_fixed = cfg["N_FIXED"]
+
+    lines = [l for l in open(path, encoding="latin-1", errors="replace").readlines()[1:] if l.strip()]
+    col_counts = [len(l.split(sep)) for l in lines]
+    max_cols = max(col_counts)
+    n_diff = sum(1 for c in col_counts if c != max_cols)
+
+    print(f"  File scan: {len(lines):,} rows, col counts {min(col_counts)}–{max_cols}")
+    if n_diff > 0:
+        print(f"WARNING: {n_diff:,} rows shorter than max (trailing NaN fill applied)")
+
+    df = pd.read_csv(
+        path, sep=sep, encoding="latin-1",
+        dtype=str, low_memory=False,
+        header=None, skiprows=1,
+        names=range(max_cols),
+    )
     df.columns = cfg["COMMUNE_COLS"] + list(range(n_fixed, len(df.columns)))
+
+    sr_rows = df["commune_code"].str.contains("SR", na=False).sum()
+    if sr_rows > 0:
+        print(f"DONE: {sr_rows:,} PLM sector rows (SR codes) loaded successfully")
+
     return df
 
 
 def extract_commune_metadata(row: pd.Series) -> dict:
-    # The results file stores commune code as a local number (e.g. "4"),
-    # NOT the full 5-digit INSEE code. We reconstruct it as dept + commune:
-    # department "01" + commune "004" = "01004".
+    # results file stores commune code as a local number (e.g. "4"),
+    # reconstruct INSEE code as dept + commune. e.g. department "01" + commune "004" = "01004".
     dep = str(row["department_code"]).strip().zfill(2)
-    com = str(row["commune_code"]).strip().zfill(3)
+    com = str(row["commune_code"]).strip()
+    if "SR" not in com: #excluding PLM
+        com = com.zfill(3)
     return {
         "department_code":   dep,
         "department_name":   clean(row["department_name"]),
@@ -151,7 +168,7 @@ def parse_registrations(path: Path) -> pd.DataFrame:
     Same file is used for both tours — candidates don't re-register.
     Age is not published by French authorities — not available here.
     """
-    df = pd.read_csv(path, sep=";", encoding="utf-8", dtype=str, on_bad_lines="skip")
+    df = pd.read_csv(path, sep=";", encoding="utf-8", dtype=str, on_bad_lines="warn")
     df.columns = [c.strip().strip('"') for c in df.columns]
 
     return pd.DataFrame({

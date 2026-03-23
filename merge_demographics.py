@@ -20,17 +20,20 @@ Update ELECTION_FILE, CENSUS_FILE, OUT_FILE to adjust.
 import pandas as pd
 from pathlib import Path
 
-# ── Change these to switch census vintage ─────────────────────────────────────
-CENSUS_YEAR = "16"   # 2-digit year: "06", "11", "16", "22"
-INCOME_YEAR = "16"   # income data year: "06", "11", "16", "21"
+# --- Adjust for census / results files -----
+CENSUS_YEAR = "22"   # 2-digit year: "06", "11", "16", "22"
+INCOME_YEAR = "21"   # income data year: "06", "11", "16", "21"
+YEAR = "2020" #2014 or 2020
+TOUR = "1"
+COMMUNE_TYPE = "plus" #plus or less
 
-# ── Paths ─────────────────────────────────────────────────────────────────────
+# --- Paths based on values ------
 BASE_DIR      = Path("/Users/propadiene/cloned-repos/cities-webscraper")
-ELECTION_FILE = BASE_DIR / "france_2014/candidate_outputs/less_1000_tour1_2014.csv"
+ELECTION_FILE = BASE_DIR / f"france_{YEAR}/candidate_outputs/{COMMUNE_TYPE}_1000_tour{TOUR}_{YEAR}.csv"
 CENSUS_FILE   = BASE_DIR / "france_census/dossier_complet.csv"
-OUT_FILE      = BASE_DIR / "france_joined_outputs/france_joined_2014/joined_less_1000_tour1_2014.csv"
+OUT_FILE      = BASE_DIR / f"new_france_joined_outputs/france_joined_{YEAR}/joined_{COMMUNE_TYPE}_1000_tour{TOUR}_{YEAR}.csv"
 
-# ── Census columns (auto-built from CENSUS_YEAR prefix) ───────────────────────
+# --- Build census columns based on YEAR prefix ------
 p = f"P{CENSUS_YEAR}_"   # e.g. "P22_"
 
 CENSUS_COLS = [
@@ -59,8 +62,6 @@ CENSUS_COLS = [
 
     f"{p}CHOM1564",         # unemployed 15-64
     f"{p}ACT1564",          # active population 15-64 (denominator)
-
-    f"{p}POP_ETRG",         # foreign nationals — ethnicity proxy (may not exist)
 
     f"MED{INCOME_YEAR}",    # median income
     f"TP60{INCOME_YEAR}",   # poverty rate
@@ -97,9 +98,6 @@ def compute_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
 
     df["pct_unemployed"] = df[f"{p}CHOM1564"] / act * 100
 
-    if f"{p}POP_ETRG" in df.columns:
-        df["pct_foreign_nationals"] = df[f"{p}POP_ETRG"] / pop * 100
-
     return df.round(2)
 
 
@@ -123,7 +121,11 @@ if __name__ == "__main__":
         print(f"  Note: {len(missing)} columns not found and skipped: {missing}")
 
     print("Merging...")
-    merged = elections.merge(census_raw, left_on="commune_code", right_on="CODGEO", how="left")
+    #get rid of PLM SR/SN suffix before merging, e.g. "13055SR01" → "13055"
+    merge_code = elections["commune_code"].str.replace(r"(SR|SN)\d+$", "", regex=True)
+    merged = elections.assign(merge_code=merge_code).merge(
+        census_raw, left_on="merge_code", right_on="CODGEO", how="left"
+    ).drop(columns=["merge_code"])
 
     matched = merged[f"{p}POP"].notna().sum()
     print(f"  Matched: {matched:,} / {len(merged):,} ({matched/len(merged)*100:.1f}%)")
@@ -135,7 +137,7 @@ if __name__ == "__main__":
     print("Computing derived percentages...")
     merged = compute_derived_columns(merged)
 
-    # Drop raw counts — keep only percentages + total pop + income
+    #keep only percentages + total pop + income (no raw counts)
     keep = {"CODGEO", f"{p}POP", f"MED{INCOME_YEAR}", f"TP60{INCOME_YEAR}"}
     raw_to_drop = [c for c in census_raw.columns if c not in keep]
     merged = merged.drop(columns=raw_to_drop + ["CODGEO"], errors="ignore")

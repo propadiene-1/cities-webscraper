@@ -22,11 +22,11 @@ from utils import (
     get_config,
 )
  
-# ── Change these two lines to process a different year or tour ────────────────
-YEAR = 2014
+# --- Adjust year/tour -----
+YEAR = 2020
 TOUR = 2   # 1 or 2
  
-# ── Paths derived from YEAR and TOUR — no need to edit below this line ────────
+# --- Not adjusted -----
 BASE_DIR   = Path("/Users/propadiene/cloned-repos/cities-webscraper")
 YEAR_DIR   = BASE_DIR / f"france_{YEAR}"
 TOUR_DIR   = YEAR_DIR / f"tour_{TOUR}"
@@ -40,7 +40,6 @@ OUTPUT_COLS = [
     "last_name", "first_name", "gender",
     "party_code", "votes", "elected",
 ]
- 
  
 def parse_results(path: Path, year: int) -> pd.DataFrame:
     """Unpack wide result file into one row per candidate."""
@@ -98,7 +97,7 @@ if __name__ == "__main__":
     })
 
     elif YEAR == 2014 and TOUR == 2:
-        # tour 2 uses wide format — same as more_1000 2014
+        # tour 2 uses wide format — same as plus_1000 2014
         print("  Parsing results...")
         df_results = parse_results(FILE_RESULTS, YEAR)
         df = df_results.copy()
@@ -115,12 +114,15 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"No pipeline defined for year {YEAR}. Add one above.")
 
+    df["elected"] = df["elected"].fillna(False).astype(bool)
+
     cols = [c for c in OUTPUT_COLS if c in df.columns]
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     df[cols].sort_values(["commune_code"]).to_csv(
         OUT_PATH, index=False, encoding="utf-8-sig"
     )
     df[cols].sort_values(["commune_code"]).to_json(
         OUT_PATH.with_suffix(".json"), orient="records", force_ascii=False, indent=2
     )
-    print(f"  ✓ {len(df):,} candidates → {OUT_PATH}")
+    print(f"DONE:   {len(df):,} candidates → {OUT_PATH}")
     print(f"    Communes: {df['commune_code'].nunique():,}  |  Elected: {df['elected'].sum():,}")
