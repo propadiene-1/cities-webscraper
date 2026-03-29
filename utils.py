@@ -162,6 +162,17 @@ def extract_commune_metadata(row: pd.Series) -> dict:
     }
 
 
+def save_outputs(df: pd.DataFrame, path: Path, cols=None, sort_by=None) -> None:
+    if sort_by:
+        df = df.sort_values(sort_by)
+    if cols:
+        df = df[[c for c in cols if c in df.columns]]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(path, index=False, encoding="utf-8-sig")
+    df.to_json(path.with_suffix(".json"), orient="records", force_ascii=False, indent=2)
+    print(f"DONE: {len(df):,} rows → {path}")
+
+
 def parse_registrations(path: Path) -> pd.DataFrame:
     """
     Parse the candidate registration file.
