@@ -114,11 +114,11 @@ def get_config(year: int) -> dict:
     return YEAR_CONFIGS[year]
 
 
-def read_wide_file(path: Path, sep: str, year: int) -> pd.DataFrame:
+def read_wide_file(path: Path, sep: str, year: int, encoding: str = "latin-1") -> pd.DataFrame:
     cfg = get_config(year)
     n_fixed = cfg["N_FIXED"]
 
-    lines = [l for l in open(path, encoding="latin-1", errors="replace").readlines()[1:] if l.strip()]
+    lines = [l for l in open(path, encoding=encoding).readlines()[1:] if l.strip()]
     col_counts = [len(l.split(sep)) for l in lines]
     max_cols = max(col_counts)
     n_diff = sum(1 for c in col_counts if c != max_cols)
@@ -128,7 +128,7 @@ def read_wide_file(path: Path, sep: str, year: int) -> pd.DataFrame:
         print(f"WARNING: {n_diff:,} rows shorter than max (trailing NaN fill applied)")
 
     df = pd.read_csv(
-        path, sep=sep, encoding="latin-1",
+        path, sep=sep, encoding=encoding,
         dtype=str, low_memory=False,
         header=None, skiprows=1,
         names=range(max_cols),

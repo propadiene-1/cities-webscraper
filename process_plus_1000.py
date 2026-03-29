@@ -27,8 +27,8 @@ from utils import (
 )
  
 # --- Adjust year/tour ------
-YEAR = 2020
-TOUR = 1  # 1 or 2
+YEAR = 2014
+TOUR = 2  # 1 or 2
  
 # --- Not adjusted ------
 BASE_DIR   = Path("/Users/propadiene/cloned-repos/cities-webscraper")
@@ -49,8 +49,11 @@ OUTPUT_COLS = [
  
 def parse_results(path: Path, year: int) -> pd.DataFrame:
     """Unpack wide result file into one row per list."""
-    # detect separator-- tabs for tour 1 2014, semicolons for all others
-    with open(path, encoding="latin-1") as f:
+    # 2014 plus_1000 files are UTF-8; all others are latin-1
+    encoding = "utf-8" if year == 2014 else "latin-1"
+
+    # detect separator -- tabs for tour 1 2014, semicolons for all others
+    with open(path, encoding=encoding) as f:
         first_line = f.readline()
     sep = ";" if first_line.count(";") > first_line.count("\t") else "\t"
 
@@ -59,7 +62,7 @@ def parse_results(path: Path, year: int) -> pd.DataFrame:
     block_size = cfg["BLOCK_SIZE"]
     block      = cfg["BLOCK_MORE"]
 
-    raw = read_wide_file(path, sep=sep, year=year)
+    raw = read_wide_file(path, sep=sep, year=year, encoding=encoding)
     n_blocks = (len(raw.columns) - n_fixed) // block_size
     print(f"  {len(raw):,} communes × {n_blocks} list blocks")
  
