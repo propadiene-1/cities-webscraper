@@ -26,7 +26,7 @@ PATCH_YEAR  = "16"   # fallback census year for unmatched communes — set to No
                      # e.g. CENSUS_YEAR="16", PATCH_YEAR="11" tries 2011 if 2016 has no match
 INCOME_YEAR = "22"     # income data year: "06", "11", "16", "21" — set to None to omit income columns
 YEAR = "2026" #2014 or 2020
-TOUR = "1"
+TOUR = "2"
 COMMUNE_TYPE = "" #plus or less
 SUFFIX = ""#"_1000_"
 
@@ -34,7 +34,7 @@ SUFFIX = ""#"_1000_"
 BASE_DIR      = Path("/Users/propadiene/cloned-repos/cities-webscraper")
 ELECTION_FILE = BASE_DIR / f"france_{YEAR}/candidate_outputs/{COMMUNE_TYPE}{SUFFIX}tour{TOUR}_{YEAR}.csv"
 CENSUS_FILE   = BASE_DIR / "france_census/dossier_complet.csv"
-OUT_FILE      = BASE_DIR / f"new_france_joined_outputs/france_joined_{YEAR}/joined_{COMMUNE_TYPE}_1000_tour{TOUR}_{YEAR}.csv"
+OUT_FILE      = BASE_DIR / f"new_france_joined_outputs/france_joined_{YEAR}/joined_{COMMUNE_TYPE}{SUFFIX}tour{TOUR}_{YEAR}.csv"
 
 # --- Build census columns based on YEAR prefix ------
 p = f"P{CENSUS_YEAR}_"   # e.g. "P22_"
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         print(f"  Still unmatched:        {total_rows - total_matched:,} rows")
 
         if patched_codes:
-            patch_path = OUT_FILE.parent / f"patched_communes_{COMMUNE_TYPE}_1000_tour{TOUR}_{YEAR}.csv"
+            patch_path = OUT_FILE.parent / f"patched_communes_{COMMUNE_TYPE}{SUFFIX}tour{TOUR}_{YEAR}.csv"
             pd.DataFrame({
                 "commune_code": patched_codes,
                 "census_year_used": f"20{PATCH_YEAR}",
