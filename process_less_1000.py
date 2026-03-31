@@ -24,7 +24,7 @@ from utils import (
  
 # --- Adjust year/tour -----
 YEAR = 2020
-TOUR = 2   # 1 or 2
+TOUR = 1   # 1 or 2
  
 # --- Not adjusted -----
 BASE_DIR   = Path("/Users/propadiene/cloned-repos/cities-webscraper")
@@ -106,12 +106,14 @@ if __name__ == "__main__":
         print("  Parsing results...")
         df_results = parse_results(FILE_RESULTS, YEAR)
         print("  Parsing registrations...")
-        df_reg = parse_registrations(FILE_REGISTRATIONS)[["commune_code", "last_name", "gender"]]
+        df_reg = parse_registrations(FILE_REGISTRATIONS)[["commune_code", "last_name", "first_name", "gender"]]
         # Restrict to communes in the less_1000 results so we don't flag plus_1000 candidates
         less_communes = set(df_results["commune_code"].unique())
         df_reg_less = df_reg[df_reg["commune_code"].isin(less_communes)]
         print("  Joining...")
-        df_full = df_results.merge(df_reg_less, on=["commune_code", "last_name"], how="outer", indicator=True)
+        # Join on last_name + first_name to avoid many-to-many matches when two candidates
+        # in the same commune share a surname; unmatched first names fall back to gender_raw
+        df_full = df_results.merge(df_reg_less, on=["commune_code", "last_name", "first_name"], how="outer", indicator=True)
         df_dropped = df_full[df_full["_merge"] == "right_only"].drop(columns=["_merge"])
         df = df_full[df_full["_merge"] != "right_only"].drop(columns=["_merge"])
         df["gender"] = df["gender"].fillna(df["gender_raw"])

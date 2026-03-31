@@ -33,7 +33,7 @@ SUFFIX = ""#"_1000_"
 # --- Paths based on values ------
 BASE_DIR      = Path("/Users/propadiene/cloned-repos/cities-webscraper")
 ELECTION_FILE = BASE_DIR / f"france_{YEAR}/candidate_outputs/{COMMUNE_TYPE}{SUFFIX}tour{TOUR}_{YEAR}.csv"
-CENSUS_FILE   = BASE_DIR / "france_census/dossier_complet.csv"
+CENSUS_FILE   = BASE_DIR / "archive/france_census/dossier_complet.csv"
 OUT_FILE      = BASE_DIR / f"new_france_joined_outputs/france_joined_{YEAR}/joined_{COMMUNE_TYPE}{SUFFIX}tour{TOUR}_{YEAR}.csv"
 
 # --- Build census columns based on YEAR prefix ------
