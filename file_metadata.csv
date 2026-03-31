@@ -7,7 +7,7 @@ year,commune_size,tour,file_path,total_rows,communes,elected_candidates,elected_
 2014,less_1000,tour2,new_france_joined_outputs/france_joined_2014/joined_less_1000_tour2_2014.csv,60919,4777,16850.0,yes,no,P16_POP,5.53,0.0,,0.0,no,yes
 2020,plus_1000,tour1,new_france_joined_outputs/france_joined_2020/joined_plus_1000_tour1_2020.csv,521321,9825,179836.0,yes,yes,P22_POP,0.14,0.0,0.0,0.0,yes,yes
 2020,plus_1000,tour2,new_france_joined_outputs/france_joined_2020/joined_plus_1000_tour2_2020.csv,112490,1340,37966.0,yes,yes,P22_POP,0.11,0.0,0.0,0.0,yes,yes
-2020,less_1000,tour1,new_france_joined_outputs/france_joined_2020/joined_less_1000_tour1_2020.csv,388974,24970,301701.0,yes,no,P22_POP,0.48,0.0,,0.0,no,yes
-2020,less_1000,tour2,new_france_joined_outputs/france_joined_2020/joined_less_1000_tour2_2020.csv,41778,3186,11783.0,yes,no,P22_POP,0.93,0.0,,0.0,no,yes
+2020,less_1000,tour1,new_france_joined_outputs/france_joined_2020/joined_less_1000_tour1_2020.csv,356394,24970,278513.0,yes,no,P22_POP,0.51,0.0,,0.0,no,yes
+2020,less_1000,tour2,new_france_joined_outputs/france_joined_2020/joined_less_1000_tour2_2020.csv,37596,3186,10713.0,yes,no,P22_POP,1.02,0.0,,0.0,no,yes
 2026,all,tour1,new_france_joined_outputs/france_joined_2026/joined_tour1_2026.csv,889142,34904,469577.0,yes,yes,P22_POP,0.91,64.74,0.01,0.01,yes,yes
 2026,all,tour2,new_france_joined_outputs/france_joined_2026/joined_tour2_2026.csv,183333,1526,42065.0,yes,yes,P22_POP,3.16,17.8,32.54,32.54,yes,yes
