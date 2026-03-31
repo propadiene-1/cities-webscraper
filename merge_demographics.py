@@ -21,8 +21,8 @@ import pandas as pd
 from pathlib import Path
 
 # --- Adjust for census / results files -----
-CENSUS_YEAR = "22"   # 2-digit year: "06", "11", "16", "22"
-PATCH_YEAR  = "16"   # fallback census year for unmatched communes — set to None to disable
+CENSUS_YEAR = "16"   # 2-digit year: "06", "11", "16", "22"
+PATCH_YEAR  = "11"   # fallback census year for unmatched communes — set to None to disable
                      # e.g. CENSUS_YEAR="16", PATCH_YEAR="11" tries 2011 if 2016 has no match
 INCOME_YEAR = None     # income data year — removed from all outputs for consistency across years
 YEAR = "2026" #2014 or 2020
