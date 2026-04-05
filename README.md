@@ -2,37 +2,6 @@
 
 webscraping work for wellesley polisci
 
-## File structure
-
-- process_less_1000.py: for <1000 communes
-- process_plus_1000.py: for 1000+ communes
-- utils.py: tools for above functions
-- merge_demographics.py: 
-
-- france_2020
-    - tour_1
-        - ... 1000-et-plus.txt = results for 1000+ communes (\t separator)
-        - ... moins-de-1000.txt = results for <1000 communes 
-    - tour_2 
-        - ... 1000-hab-et-plus.txt = results for 1000+ communes
-        - ... moins-de-1000-hab.txt = results for <1000 communes
-    - candidats-13-03-2020.csv = candidate registration info (name, sex, etc.)
-    - notes
-        - combines reg. w/ results
-        - gender scraped from prefix (ms/mr)
-- france_2014
-    - tour_1 
-        - one results file
-    - tour_2
-        - one results file
-    - notes
-        - no candidate registration info (nonexistent for 1000+, 28 separate files for <1000)
-        - candidate name, gender, etc. obtained from results files
-        - only has list headers
-
-- new_france_joined_outputs
-    - both years joined w/ demographic data
-
 ## Notes
 
 - separate files for tour 1 vs. tour 2
