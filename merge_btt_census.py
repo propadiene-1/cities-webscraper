@@ -2,7 +2,8 @@
 merge_btt_census.py
 ===================
 Merge election data with INSEE BTT_TD_POP1A census files (population by age
-and sex, long format) and write to newest_france_joined_outputs/.
+and sex) plus FILOSOFI income/poverty files, and write to
+newest_france_joined_outputs/.
 
 Census file → election year mapping
 ------------------------------------
@@ -11,12 +12,29 @@ Census file → election year mapping
   BTT_TD_POP1A_2019.csv  →  2020 elections  (closest available proxy)
   BTT_TD_POP1A_2022.csv  →  2026 elections  (closest available proxy)
 
+FILOSOFI vintage → election year mapping (income/poverty)
+----------------------------------------------------------
+  FILOSOFI 2012  →  2008 elections  (earliest vintage available)
+  FILOSOFI 2014  →  2014 elections
+  FILOSOFI 2019  →  2020 elections
+  FILOSOFI 2021  →  2026 elections  (latest available; FILOSOFI 2022 was not
+                                     released due to quality issues)
+
 Available demographics (from BTT files)
 -----------------------------------------
   P{YY}_POP     — total commune population
   pct_female / pct_male
   pct_age_0_14 … pct_age_75_plus  (approximated from BTT 10 age bands using
                                    uniform-distribution interpolation)
+
+Available income indicators (from FILOSOFI)
+--------------------------------------------
+  median_income  — Q2{YY}: median disposable income per consumption unit (€)
+  poverty_rate   — TP60{YY}: % of population below 60% median income threshold
+
+  Poverty rate basis: DISP (disposable income) for 2014/2019/2021; DEC
+  (declared income) for 2012 only — FILOSOFI 2012 did not publish the
+  DISP_Pauvres file. The two definitions differ by ~1-2 pts on average.
 
 NOT available from BTT files (absent in output)
 ------------------------------------------------
@@ -52,11 +70,11 @@ import re
 import pandas as pd
 from pathlib import Path
 
-BASE            = Path("/Users/propadiene/cloned-repos/cities-webscraper")
+BASE            = Path(__file__).resolve().parent
 DOSSIER_COMPLET = BASE / "archive/france_census/dossier_complet.csv"
-BTT_DIR  = BASE / "new_france_census"
-IN_DIR   = BASE / "new_france_joined_outputs"
-OUT_DIR  = BASE / "newest_france_joined_outputs"
+BTT_DIR    = BASE / "new_france_census"
+INCOME_DIR = BASE / "new_france_income"
+OUT_DIR    = BASE / "newest_france_joined_outputs"
 
 # BTT file configs: (path, encoding, CODGEO year used in crosswalk)
 BTT_FILES = {
@@ -66,28 +84,62 @@ BTT_FILES = {
     "2022": (BTT_DIR / "BTT_TD_POP1A_2022.csv",  "utf-8",   "2022"),
 }
 
-# Election year → (BTT key, census_year for crosswalk lookup, pop column name)
-YEAR_CONFIG = {
-    "2008": ("2008", "2008", "P08_POP"),
-    "2014": ("2014", "2014", "P14_POP"),
-    "2020": ("2019", "2019", "P19_POP"),
-    "2026": ("2022", "2022", "P22_POP"),
+# FILOSOFI file configs per vintage:
+#   disp_path     — DISP_COM file (contains median Q2{yy})
+#   pauvres_path  — *_Pauvres_COM file (contains poverty rate TP60{yy})
+#   vintage_yy    — 2-digit suffix on column names
+#   geo_year      — CODGEO year used for crosswalk lookup
+# FILOSOFI 2012 only published the DEC_Pauvres file (no DISP variant), so its
+# poverty rate is computed on declared income; 2014+ uses disposable income.
+INCOME_FILES = {
+    "2012": {
+        "disp_path":    INCOME_DIR / "extract_2012/indic-struct-distrib-revenu-communes-2012/FILO_DISP_COM.xls",
+        "pauvres_path": INCOME_DIR / "extract_2012/indic-struct-distrib-revenu-communes-2012/FILO_DEC_Pauvres_COM.xls",
+        "vintage_yy":   "12",
+        "geo_year":     "2012",
+    },
+    "2014": {
+        "disp_path":    INCOME_DIR / "extract_2014/indic-struct-distrib-revenu-2014-COMMUNES/FILO_DISP_COM.xls",
+        "pauvres_path": INCOME_DIR / "extract_2014/indic-struct-distrib-revenu-2014-COMMUNES/FILO_DISP_Pauvres_COM.xls",
+        "vintage_yy":   "14",
+        "geo_year":     "2014",
+    },
+    "2019": {
+        "disp_path":    INCOME_DIR / "extract_2019/FILO2019_DISP_COM.xlsx",
+        "pauvres_path": INCOME_DIR / "extract_2019/FILO2019_DISP_Pauvres_COM.xlsx",
+        "vintage_yy":   "19",
+        "geo_year":     "2019",
+    },
+    "2021": {
+        "disp_path":    INCOME_DIR / "extract_2021/FILO2021_DISP_COM.xlsx",
+        "pauvres_path": INCOME_DIR / "extract_2021/FILO2021_DISP_PAUVRES_COM.xlsx",
+        "vintage_yy":   "21",
+        "geo_year":     "2021",
+    },
 }
 
-# Input files: (election_year, label, relative path inside IN_DIR)
+# Election year → (BTT key, census_year for crosswalk lookup, pop column name, FILOSOFI vintage)
+YEAR_CONFIG = {
+    "2008": ("2008", "2008", "P08_POP", "2012"),
+    "2014": ("2014", "2014", "P14_POP", "2014"),
+    "2020": ("2019", "2019", "P19_POP", "2019"),
+    "2026": ("2022", "2022", "P22_POP", "2021"),
+}
+
+# Input files: (election_year, label, absolute path to candidate_outputs CSV)
 INPUT_FILES = [
-    ("2008", "plus_1000_tour1",  "france_joined_2008/joined_plus_1000_tour1_2008.csv"),
-    ("2008", "plus_1000_tour2",  "france_joined_2008/joined_plus_1000_tour2_2008.csv"),
-    ("2014", "plus_1000_tour1",  "france_joined_2014/joined_plus_1000_tour1_2014.csv"),
-    ("2014", "plus_1000_tour2",  "france_joined_2014/joined_plus_1000_tour2_2014.csv"),
-    ("2014", "less_1000_tour1",  "france_joined_2014/joined_less_1000_tour1_2014.csv"),
-    ("2014", "less_1000_tour2",  "france_joined_2014/joined_less_1000_tour2_2014.csv"),
-    ("2020", "plus_1000_tour1",  "france_joined_2020/joined_plus_1000_tour1_2020.csv"),
-    ("2020", "plus_1000_tour2",  "france_joined_2020/joined_plus_1000_tour2_2020.csv"),
-    ("2020", "less_1000_tour1",  "france_joined_2020/joined_less_1000_tour1_2020.csv"),
-    ("2020", "less_1000_tour2",  "france_joined_2020/joined_less_1000_tour2_2020.csv"),
-    ("2026", "tour1",            "france_joined_2026/joined_tour1_2026.csv"),
-    ("2026", "tour2",            "france_joined_2026/joined_tour2_2026.csv"),
+    ("2008", "plus_1000_tour1",  BASE / "france_2008/candidate_outputs/plus_1000_tour1_2008.csv"),
+    ("2008", "plus_1000_tour2",  BASE / "france_2008/candidate_outputs/plus_1000_tour2_2008.csv"),
+    ("2014", "plus_1000_tour1",  BASE / "france_2014/candidate_outputs/plus_1000_tour1_2014.csv"),
+    ("2014", "plus_1000_tour2",  BASE / "france_2014/candidate_outputs/plus_1000_tour2_2014.csv"),
+    ("2014", "less_1000_tour1",  BASE / "france_2014/candidate_outputs/less_1000_tour1_2014.csv"),
+    ("2014", "less_1000_tour2",  BASE / "france_2014/candidate_outputs/less_1000_tour2_2014.csv"),
+    ("2020", "plus_1000_tour1",  BASE / "france_2020/candidate_outputs/plus_1000_tour1_2020.csv"),
+    ("2020", "plus_1000_tour2",  BASE / "france_2020/candidate_outputs/plus_1000_tour2_2020.csv"),
+    ("2020", "less_1000_tour1",  BASE / "france_2020/candidate_outputs/less_1000_tour1_2020.csv"),
+    ("2020", "less_1000_tour2",  BASE / "france_2020/candidate_outputs/less_1000_tour2_2020.csv"),
+    ("2026", "tour1",            BASE / "france_2026/candidate_outputs/tour1_2026.csv"),
+    ("2026", "tour2",            BASE / "france_2026/candidate_outputs/tour2_2026.csv"),
 ]
 
 ELECTION_COLS = [
@@ -159,6 +211,51 @@ def compute_derived(btt: pd.DataFrame, pop_col: str) -> pd.DataFrame:
                 "pct_age_45_59", "pct_age_60_74", "pct_age_75_plus"]
     btt[pct_cols] = btt[pct_cols].round(2)
     return btt[["CODGEO"] + pct_cols]
+
+
+# ---------------------------------------------------------------------------
+# FILOSOFI income loading
+# ---------------------------------------------------------------------------
+
+_income_cache: dict[str, pd.DataFrame] = {}
+
+def load_income(vintage_key: str) -> pd.DataFrame:
+    """Load FILOSOFI median income and poverty rate for a vintage.
+    Returns one row per CODGEO with columns: median_income, poverty_rate."""
+    if vintage_key in _income_cache:
+        return _income_cache[vintage_key]
+
+    cfg     = INCOME_FILES[vintage_key]
+    yy      = cfg["vintage_yy"]
+    med_col = f"Q2{yy}"
+    pov_col = f"TP60{yy}"
+
+    # calamine engine is more lenient with INSEE's older xls and the 2021 xlsx
+    # (openpyxl rejects FILOSOFI 2021's non-standard stylesheet colours).
+    engine = "calamine" if cfg["disp_path"].suffix == ".xlsx" else None
+    disp = pd.read_excel(cfg["disp_path"], sheet_name="ENSEMBLE", header=5,
+                         dtype={"CODGEO": str}, engine=engine)
+    pauv = pd.read_excel(cfg["pauvres_path"], sheet_name="ENSEMBLE", header=5,
+                         dtype={"CODGEO": str}, engine=engine)
+
+    disp = disp[["CODGEO", med_col]].rename(columns={med_col: "median_income"})
+    pauv = pauv[["CODGEO", pov_col]].rename(columns={pov_col: "poverty_rate"})
+
+    df = disp.merge(pauv, on="CODGEO", how="outer")
+    # FILOSOFI 2021 stores numbers as strings with French decimal separators
+    # (e.g. "17,0") and "s" for suppressed values; normalise both before parsing.
+    for col in ("median_income", "poverty_rate"):
+        if df[col].dtype == object:
+            df[col] = df[col].astype(str).str.replace(",", ".", regex=False)
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+    df["median_income"] = df["median_income"].round(0)
+    df["poverty_rate"]  = df["poverty_rate"].round(1)
+
+    print(f"    FILOSOFI {vintage_key}: {len(df):,} communes "
+          f"(median: {df['median_income'].notna().sum():,}, "
+          f"poverty: {df['poverty_rate'].notna().sum():,})")
+    _income_cache[vintage_key] = df
+    return df
 
 
 # ---------------------------------------------------------------------------
@@ -255,17 +352,17 @@ def crosswalk_lookup(codes: pd.Series, from_year: str, to_year: str) -> pd.Serie
 # Main merge function
 # ---------------------------------------------------------------------------
 
-def process_file(election_year: str, label: str, rel_path: str):
-    in_path = IN_DIR / rel_path
-    out_subdir = OUT_DIR / in_path.parent.name
-    out_path   = out_subdir / in_path.name
+def process_file(election_year: str, label: str, in_path: Path):
+    out_subdir = OUT_DIR / f"france_joined_{election_year}"
+    out_path   = out_subdir / f"joined_{in_path.stem}.csv"
 
     print(f"\n{'='*60}")
     print(f"  {election_year} {label}")
     print(f"  Input:  {in_path}")
     print(f"  Output: {out_path}")
 
-    btt_key, census_year, pop_col = YEAR_CONFIG[election_year]
+    btt_key, census_year, pop_col, income_key = YEAR_CONFIG[election_year]
+    income_geo_year = INCOME_FILES[income_key]["geo_year"]
 
     # --- Load election data ---
     elections = pd.read_csv(in_path, dtype={"commune_code": str}, low_memory=False)
@@ -350,6 +447,17 @@ def process_file(election_year: str, label: str, rel_path: str):
         }).to_csv(patch_path, index=False, encoding="utf-8-sig")
         print(f"  Patched communes → {patch_path}")
 
+    # --- FILOSOFI income join (median_income, poverty_rate) ---
+    income = load_income(income_key).set_index("CODGEO")
+    base_code = merged["commune_code"].str.replace(r"(SR|SN)\d+$", "", regex=True)
+    translated = crosswalk_lookup(base_code, election_year, income_geo_year)
+    income_key_s = translated.where(translated.notna(), base_code)
+    merged["median_income"] = income_key_s.map(income["median_income"])
+    merged["poverty_rate"]  = income_key_s.map(income["poverty_rate"])
+    income_matched = merged["median_income"].notna().sum()
+    print(f"  FILOSOFI {income_key} matched: {income_matched:,} / {total_rows:,} "
+          f"({income_matched/total_rows*100:.1f}%)")
+
     # --- Write output ---
     merged = merged.drop(columns=["CODGEO"], errors="ignore")
     merged.to_csv(out_path, index=False, encoding="utf-8-sig")
@@ -367,7 +475,7 @@ if __name__ == "__main__":
     print("merge_btt_census.py — merging BTT population census into election data")
     print(f"Output directory: {OUT_DIR}\n")
 
-    for election_year, label, rel_path in INPUT_FILES:
-        process_file(election_year, label, rel_path)
+    for election_year, label, in_path in INPUT_FILES:
+        process_file(election_year, label, in_path)
 
     print("\n\nDone.")

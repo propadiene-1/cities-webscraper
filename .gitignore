@@ -11,6 +11,8 @@ france_census/
 new_france_census/
 newest_france_joined_outputs/france_joined_2026/
 new_france_joined_outputs/france_joined_2026/joined_tour1_2026.csv
+new_france_income/
+.claude/
 
 data/
 *.json
