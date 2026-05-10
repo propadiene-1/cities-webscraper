@@ -49,7 +49,7 @@ from utils import clean, to_int, save_outputs
 TOUR = 1   # 1 or 2
 
 # --- Paths ------
-BASE_DIR       = Path("/Users/propadiene/cloned-repos/cities-webscraper")
+BASE_DIR       = Path(__file__).resolve().parent
 YEAR_DIR       = BASE_DIR / "france_2026"
 TOUR_DIR       = YEAR_DIR / f"tour_{TOUR}"
 FILE_RESULTS   = next(TOUR_DIR.glob("municipales-2026-resultats-communes-*.csv"))

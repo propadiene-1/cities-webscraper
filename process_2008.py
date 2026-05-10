@@ -63,7 +63,7 @@ from utils import clean, to_int, save_outputs
 TOUR = 1  # 1 or 2
 
 # --- Paths ------
-BASE_DIR       = Path("/Users/propadiene/cloned-repos/cities-webscraper")
+BASE_DIR       = Path(__file__).resolve().parent
 YEAR_DIR       = BASE_DIR / "france_2008"
 FILE_RESULTS   = YEAR_DIR / f"municipales-2008-résultats-bureaux_vote-tour{TOUR}.csv"
 FILE_CANDIDATS = YEAR_DIR / f"municipales-2008-candidats-tour{TOUR}.csv"

@@ -27,7 +27,7 @@ YEAR = 2020
 TOUR = 1   # 1 or 2
  
 # --- Not adjusted -----
-BASE_DIR   = Path("/Users/propadiene/cloned-repos/cities-webscraper")
+BASE_DIR   = Path(__file__).resolve().parent
 YEAR_DIR   = BASE_DIR / f"france_{YEAR}"
 TOUR_DIR   = YEAR_DIR / f"tour_{TOUR}"
  
