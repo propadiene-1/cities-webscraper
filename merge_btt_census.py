@@ -418,6 +418,11 @@ def process_file(election_year: str, label: str, in_path: Path):
     print(f"  FILOSOFI {income_key} matched: {income_matched:,} / {total_rows:,} "
           f"({income_matched/total_rows*100:.1f}%)")
 
+    # --- Coerce count columns to nullable Int64 so CSV/JSON don't write "2887.0" ---
+    for col in ("votes", pop_col, "median_income"):
+        if col in merged.columns:
+            merged[col] = pd.to_numeric(merged[col], errors="coerce").round().astype("Int64")
+
     # --- Write output ---
     merged = merged.drop(columns=["CODGEO"], errors="ignore")
     merged.to_csv(out_path, index=False, encoding="utf-8-sig")
