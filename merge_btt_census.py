@@ -57,13 +57,17 @@ within each BTT group):
 Commune code crosswalk
 -----------------------
   new_france_census/table_passage_annuelle_2026.xlsx maps commune codes across
-  years 2003–2026. Used to patch unmatched codes after the direct join.
+  years 2003–2026. Used for the FILOSOFI income join when the election year's
+  geography differs from the FILOSOFI vintage year's geography (e.g. 2026
+  election codes → 2021 FILOSOFI codes: ~128 communes get translated).
 
 Join key
 ---------
-  election commune_code → PLM SR/SN suffix stripped → match CODGEO in BTT.
-  Unmatched → look up election code in CODGEO_{election_year} column of
-  crosswalk → translate to CODGEO_{census_year} → retry join.
+  election commune_code → PLM SR/SN suffix stripped → match CODGEO in BTT
+  (no crosswalk needed — BTT vintage already matches the election year's
+  geography for the years we use).
+  For FILOSOFI: same code stripping, then crosswalk-translate from election
+  year to FILOSOFI vintage year before the join.
 """
 
 import re
@@ -118,7 +122,8 @@ INCOME_FILES = {
     },
 }
 
-# Election year → (BTT key, census_year for crosswalk lookup, pop column name, FILOSOFI vintage)
+# Election year → (BTT key, census_year [unused, kept for tuple stability],
+#                  pop column name, FILOSOFI vintage)
 YEAR_CONFIG = {
     "2008": ("2008", "2008", "P08_POP", "2012"),
     "2014": ("2014", "2014", "P14_POP", "2014"),
@@ -361,7 +366,7 @@ def process_file(election_year: str, label: str, in_path: Path):
     print(f"  Input:  {in_path}")
     print(f"  Output: {out_path}")
 
-    btt_key, census_year, pop_col, income_key = YEAR_CONFIG[election_year]
+    btt_key, _, pop_col, income_key = YEAR_CONFIG[election_year]
     income_geo_year = INCOME_FILES[income_key]["geo_year"]
 
     # --- Load election data ---
@@ -393,59 +398,14 @@ def process_file(election_year: str, label: str, in_path: Path):
         print(f"  Unmatched after direct join: {total_rows - main_matched:,} rows "
               f"across {len(unmatched_codes):,} communes")
 
-    # --- Crosswalk patch ---
-    patched_count = 0
-    patched_communes = []
-    if len(unmatched_codes) > 0:
-        # Translate unmatched election codes from election_year geography → census_year geography
-        unmatched_series  = pd.Series(unmatched_codes)
-        translated        = crosswalk_lookup(unmatched_series, election_year, census_year)
-        code_map          = dict(zip(unmatched_codes, translated))
-
-        pct_cols = [c for c in merged.columns if c.startswith("pct_") or c == pop_col]
-        unmatched_mask    = merged[pop_col].isna()
-        translated_codes  = (
-            merged.loc[unmatched_mask, "commune_code"]
-            .str.replace(r"(SR|SN)\d+$", "", regex=True)
-            .map(code_map)
-        )
-        patch_lookup = btt.set_index("CODGEO")
-        for col in pct_cols:
-            merged.loc[unmatched_mask, col] = translated_codes.map(
-                patch_lookup[col] if col in patch_lookup.columns else pd.Series(dtype=float)
-            ).values
-
-        patched_mask     = unmatched_mask & merged[pop_col].notna()
-        patched_communes = sorted(
-            merged.loc[patched_mask, "commune_code"].unique()
-        )
-        patched_count    = patched_mask.sum()
-        total_matched    = main_matched + patched_count
-        print(f"  Patched via crosswalk: {patched_count:,} rows across "
-              f"{len(patched_communes):,} communes")
-        print(f"  Matched (incl. patch): {total_matched:,} / {total_rows:,} "
-              f"({total_matched/total_rows*100:.1f}%)")
-
-    still_unmatched = merged[merged[pop_col].isna()]["commune_code"].unique()
-    print(f"  Still unmatched:   {len(still_unmatched):,} communes")
-
     # --- Save unmatched list ---
     out_subdir.mkdir(parents=True, exist_ok=True)
     unmatched_path = out_subdir / f"unmatched_communes_{label}.txt"
-    unmatched_path.write_text("\n".join(sorted(still_unmatched)), encoding="utf-8")
-    if len(still_unmatched) > 0:
+    unmatched_path.write_text("\n".join(sorted(unmatched_codes)), encoding="utf-8")
+    if len(unmatched_codes) > 0:
         print(f"  Unmatched communes → {unmatched_path}")
     else:
         print(f"  No unmatched communes — {unmatched_path} cleared")
-
-    # --- Save patched communes list ---
-    if patched_communes:
-        patch_path = out_subdir / f"patched_communes_{label}.csv"
-        pd.DataFrame({
-            "commune_code":    patched_communes,
-            "census_year_used": census_year,
-        }).to_csv(patch_path, index=False, encoding="utf-8-sig")
-        print(f"  Patched communes → {patch_path}")
 
     # --- FILOSOFI income join (median_income, poverty_rate) ---
     income = load_income(income_key).set_index("CODGEO")

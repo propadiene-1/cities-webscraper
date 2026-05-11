@@ -31,57 +31,94 @@ ROOT = Path(__file__).resolve().parent
 OUT_DIR  = ROOT / "summary_stats"
 JOINED   = ROOT / "newest_france_joined_outputs"
 
-# (year, label, candidate_outputs path, joined output path, pop_col)
+# (year, label, candidate_outputs path, joined output path, pop_col, drop_reason)
+#
+# drop_reason mirrors the print line each process_*.py emits when writing its
+# dropped_outputs/ file. "tour1-eliminated-or-no-match" tour-2 files are
+# dominated by candidates who didn't advance from tour 1 (not data loss); the
+# tour1_attrition_rows column below tries to quantify that split.
 TARGETS = [
     ("2008", "plus_1000_tour1",
         ROOT / "france_2008/candidate_outputs/plus_1000_tour1_2008.csv",
         JOINED / "france_joined_2008/joined_plus_1000_tour1_2008.csv",
-        "P08_POP"),
+        "P08_POP",
+        "candidat with no result row"),
     ("2008", "plus_1000_tour2",
         ROOT / "france_2008/candidate_outputs/plus_1000_tour2_2008.csv",
         JOINED / "france_joined_2008/joined_plus_1000_tour2_2008.csv",
-        "P08_POP"),
+        "P08_POP",
+        "candidat without tour-2 result (eliminated in tour 1 or no match)"),
     ("2014", "plus_1000_tour1",
         ROOT / "france_2014/candidate_outputs/plus_1000_tour1_2014.csv",
         JOINED / "france_joined_2014/joined_plus_1000_tour1_2014.csv",
-        "P14_POP"),
+        "P14_POP",
+        "candidat with no result row"),
     ("2014", "plus_1000_tour2",
         ROOT / "france_2014/candidate_outputs/plus_1000_tour2_2014.csv",
         JOINED / "france_joined_2014/joined_plus_1000_tour2_2014.csv",
-        "P14_POP"),
+        "P14_POP",
+        "candidature commune absent from results"),
     ("2014", "less_1000_tour1",
         ROOT / "france_2014/candidate_outputs/less_1000_tour1_2014.csv",
         JOINED / "france_joined_2014/joined_less_1000_tour1_2014.csv",
-        "P14_POP"),
+        "P14_POP",
+        "registration with no result match"),
     ("2014", "less_1000_tour2",
         ROOT / "france_2014/candidate_outputs/less_1000_tour2_2014.csv",
         JOINED / "france_joined_2014/joined_less_1000_tour2_2014.csv",
-        "P14_POP"),
+        "P14_POP",
+        "registration with no tour-2 result match"),
     ("2020", "plus_1000_tour1",
         ROOT / "france_2020/candidate_outputs/plus_1000_tour1_2020.csv",
         JOINED / "france_joined_2020/joined_plus_1000_tour1_2020.csv",
-        "P19_POP"),
+        "P19_POP",
+        "registration with no result match"),
     ("2020", "plus_1000_tour2",
         ROOT / "france_2020/candidate_outputs/plus_1000_tour2_2020.csv",
         JOINED / "france_joined_2020/joined_plus_1000_tour2_2020.csv",
-        "P19_POP"),
+        "P19_POP",
+        "registration without tour-2 result (eliminated in tour 1 or no match)"),
     ("2020", "less_1000_tour1",
         ROOT / "france_2020/candidate_outputs/less_1000_tour1_2020.csv",
         JOINED / "france_joined_2020/joined_less_1000_tour1_2020.csv",
-        "P19_POP"),
+        "P19_POP",
+        "registration with no result match"),
     ("2020", "less_1000_tour2",
         ROOT / "france_2020/candidate_outputs/less_1000_tour2_2020.csv",
         JOINED / "france_joined_2020/joined_less_1000_tour2_2020.csv",
-        "P19_POP"),
+        "P19_POP",
+        "registration without tour-2 result (eliminated in tour 1 or no match)"),
     ("2026", "tour1",
         ROOT / "france_2026/candidate_outputs/tour1_2026.csv",
         JOINED / "france_joined_2026/joined_tour1_2026.csv",
-        "P22_POP"),
+        "P22_POP",
+        "candidature with no result row"),
     ("2026", "tour2",
         ROOT / "france_2026/candidate_outputs/tour2_2026.csv",
         JOINED / "france_joined_2026/joined_tour2_2026.csv",
-        "P22_POP"),
+        "P22_POP",
+        "candidature without tour-2 result (eliminated in tour 1 or no match)"),
 ]
+
+# Mapping: tour2 file → its tour1 final-output path. Used to split tour2
+# drops into "tour1 eliminations" vs genuinely unmatched.
+TOUR2_TO_TOUR1 = {
+    "2008 plus_1000_tour2": JOINED / "france_joined_2008/joined_plus_1000_tour1_2008.csv",
+    "2014 plus_1000_tour2": JOINED / "france_joined_2014/joined_plus_1000_tour1_2014.csv",
+    "2014 less_1000_tour2": JOINED / "france_joined_2014/joined_less_1000_tour1_2014.csv",
+    "2020 plus_1000_tour2": JOINED / "france_joined_2020/joined_plus_1000_tour1_2020.csv",
+    "2020 less_1000_tour2": JOINED / "france_joined_2020/joined_less_1000_tour1_2020.csv",
+    "2026 tour2":           JOINED / "france_joined_2026/joined_tour1_2026.csv",
+}
+
+
+def is_dom_tom(code: str) -> bool:
+    """True if a commune code is in an INSEE overseas territory.
+    INSEE uses '97x'/'98x'; the Interior Ministry uses 'ZA/ZB/ZC/ZD/ZS/ZM/ZN/ZW/ZX'.
+    """
+    if not isinstance(code, str) or not code:
+        return False
+    return code.startswith(("97", "98")) or code[0] == "Z"
 
 
 def dropped_path(year: str, label: str) -> Path:
@@ -100,7 +137,7 @@ def count_rows(path: Path) -> int:
 def summarize() -> None:
     drops_rows, miss_rows, unmatched_rows, coverage_rows = [], [], [], []
 
-    for year, label, cand_path, joined_path, pop_col in TARGETS:
+    for year, label, cand_path, joined_path, pop_col, drop_reason in TARGETS:
         print(f"  scanning {year} {label}")
         df = pd.read_csv(joined_path, dtype={"commune_code": str}, low_memory=False)
 
@@ -113,17 +150,50 @@ def summarize() -> None:
         census_communes = sorted(df.loc[census_mask, "commune_code"].dropna().unique())
         income_communes = sorted(df.loc[income_mask, "commune_code"].dropna().unique())
 
+        # Tour-2 attrition split: how many dropped rows were just tour-1 losers?
+        tour1_attrition = ""
+        genuine_drops   = ""
+        key = f"{year} {label}"
+        if key in TOUR2_TO_TOUR1 and n_dropped > 0:
+            dpath = dropped_path(year, label)
+            if dpath.exists():
+                dropped = pd.read_csv(dpath, dtype={"commune_code": str},
+                                      low_memory=False, usecols=lambda c: c in
+                                      ("commune_code", "last_name", "first_name"))
+                tour1 = pd.read_csv(TOUR2_TO_TOUR1[key], dtype={"commune_code": str},
+                                    low_memory=False,
+                                    usecols=["commune_code", "last_name", "first_name"])
+                tour1_keys = set(zip(tour1["commune_code"], tour1["last_name"],
+                                     tour1["first_name"]))
+                drop_keys  = list(zip(dropped["commune_code"], dropped["last_name"],
+                                      dropped["first_name"]))
+                hit = sum(1 for k in drop_keys if k in tour1_keys)
+                tour1_attrition = hit
+                genuine_drops   = n_dropped - hit
+
+        # DOM-TOM (overseas) split of income misses
+        dom_tom_communes  = [c for c in income_communes if is_dom_tom(c)]
+        metro_communes    = [c for c in income_communes if not is_dom_tom(c)]
+        dom_tom_mask      = income_mask & df["commune_code"].apply(is_dom_tom)
+        dom_tom_rows      = int(dom_tom_mask.sum())
+
         drops_rows.append({
             "year": year,
             "file": label,
-            "source_rows":              n_source,
-            "dropped_in_process":       n_dropped,
-            "final_rows":               n_final,
-            "communes_in_final":        df["commune_code"].nunique(),
-            "census_unmatched_rows":    int(census_mask.sum()),
-            "census_unmatched_communes": len(census_communes),
-            "income_unmatched_rows":    int(income_mask.sum()),
-            "income_unmatched_communes": len(income_communes),
+            "drop_reason":                  drop_reason,
+            "source_rows":                  n_source,
+            "dropped_in_process":           n_dropped,
+            "tour1_attrition_rows":         tour1_attrition,
+            "genuine_drops":                genuine_drops,
+            "final_rows":                   n_final,
+            "communes_in_final":            df["commune_code"].nunique(),
+            "census_unmatched_rows":        int(census_mask.sum()),
+            "census_unmatched_communes":    len(census_communes),
+            "income_unmatched_rows":        int(income_mask.sum()),
+            "income_unmatched_communes":    len(income_communes),
+            "income_unmatched_dom_tom_rows":      dom_tom_rows,
+            "income_unmatched_dom_tom_communes":  len(dom_tom_communes),
+            "income_unmatched_metro_communes":    len(metro_communes),
         })
 
         for col in df.columns:
@@ -159,11 +229,13 @@ def summarize() -> None:
             unmatched_rows.append({
                 "year": year, "file": label, "stage": "census",
                 "commune_code": code, "commune_name": name_lookup.get(code, ""),
+                "is_dom_tom": is_dom_tom(code),
             })
         for code in income_communes:
             unmatched_rows.append({
                 "year": year, "file": label, "stage": "income",
                 "commune_code": code, "commune_name": name_lookup.get(code, ""),
+                "is_dom_tom": is_dom_tom(code),
             })
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)

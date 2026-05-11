@@ -1,13 +1,13 @@
-﻿year,file,source_rows,dropped_in_process,final_rows,communes_in_final,census_unmatched_rows,census_unmatched_communes,income_unmatched_rows,income_unmatched_communes
-2008,plus_1000_tour1,8060,1237,8026,2593,686,164,638,145
-2008,plus_1000_tour2,2538,323,2469,871,213,81,200,76
-2014,plus_1000_tour1,22899,0,22899,9906,2365,356,2205,245
-2014,plus_1000_tour2,24628,925,24628,1800,832,131,814,125
-2014,less_1000_tour1,293259,0,293259,26744,7685,731,26372,3712
-2014,less_1000_tour2,60919,0,60919,4777,1694,143,3693,598
-2020,plus_1000_tour1,521321,23327,521321,9825,23,1,125,2
-2020,plus_1000_tour2,112490,432158,112490,1340,0,0,87,1
-2020,less_1000_tour1,356394,25,356394,24970,878,48,30662,3581
-2020,less_1000_tour2,37596,26013,37596,3186,312,18,2565,459
-2026,tour1,889142,0,889142,34904,8006,52,45793,3695
-2026,tour2,183333,0,183333,1526,5792,39,9129,72
+﻿year,file,drop_reason,source_rows,dropped_in_process,tour1_attrition_rows,genuine_drops,final_rows,communes_in_final,census_unmatched_rows,census_unmatched_communes,income_unmatched_rows,income_unmatched_communes,income_unmatched_dom_tom_rows,income_unmatched_dom_tom_communes,income_unmatched_metro_communes
+2008,plus_1000_tour1,candidat with no result row,8060,1237,,,8026,2593,686,164,638,145,638,145,0
+2008,plus_1000_tour2,candidat without tour-2 result (eliminated in tour 1 or no match),2538,323,48,275,2469,871,213,81,200,76,200,76,0
+2014,plus_1000_tour1,candidat with no result row,22899,0,,,22899,9906,2365,356,2205,245,2202,243,2
+2014,plus_1000_tour2,candidature commune absent from results,24628,925,0,925,24628,1800,832,131,814,125,814,125,0
+2014,less_1000_tour1,registration with no result match,293259,0,,,293259,26744,7685,731,26372,3712,368,57,3655
+2014,less_1000_tour2,registration with no tour-2 result match,60919,0,,,60919,4777,1694,143,3693,598,432,26,572
+2020,plus_1000_tour1,registration with no result match,521321,23327,,,521321,9825,23,1,125,2,0,0,2
+2020,plus_1000_tour2,registration without tour-2 result (eliminated in tour 1 or no match),112490,432158,408831,23327,112490,1340,0,0,87,1,0,0,1
+2020,less_1000_tour1,registration with no result match,356394,25,,,356394,24970,878,48,30662,3581,730,36,3545
+2020,less_1000_tour2,registration without tour-2 result (eliminated in tour 1 or no match),37596,26013,26010,3,37596,3186,312,18,2565,459,274,13,446
+2026,tour1,candidature with no result row,889142,0,,,889142,34904,8006,52,45793,3695,14581,106,3589
+2026,tour2,candidature without tour-2 result (eliminated in tour 1 or no match),183333,0,,,183333,1526,5792,39,9129,72,8837,57,15
