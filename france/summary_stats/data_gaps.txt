@@ -75,13 +75,6 @@ Tour-2 "drops" are mostly tour-1 attrition, not data loss
   attrition) and `unexplained_drops` (genuinely unmatched registrations).
   Only the latter is a data-quality concern.
 
-2026 tour-2 incomplete rows
----------------------------
-- 60,000 of 183,333 rows in 2026 tour 2 have empty `commune_name`,
-  `list_name`, and `votes`. `process_2026.py` retains tour-1 registration
-  rows that had no tour-2 result instead of dropping them, unlike the
-  other tour-2 scripts. Fixable in `process_2026.py`.
-
 Column-level structural absences
 --------------------------------
 - `party_code` 100% empty in 2014 less_1000_tour1 (column absent in

@@ -160,15 +160,20 @@ if __name__ == "__main__":
         indicator=True,
     )
 
-    # Save dropped rows (candidature with no matching result)
-    df_dropped = df_full[df_full["_merge"] == "right_only"].drop(columns=["_merge"])
+    # Save dropped rows. Two flavours:
+    #   left_only  — registered candidat whose list isn't in this tour's results
+    #                (in tour 2: their tour-1 list didn't advance — the main
+    #                source of the previous bug where 60k tour-2 rows had empty
+    #                commune_name / list_name / votes).
+    #   right_only — a result list with no matching candidatures rows.
+    df_dropped = df_full[df_full["_merge"] != "both"].drop(columns=["_merge"])
     dropped_path = YEAR_DIR / f"dropped_outputs/dropped_tour{TOUR}_2026.csv"
     dropped_path.parent.mkdir(parents=True, exist_ok=True)
     df_dropped.to_csv(dropped_path, index=False, encoding="utf-8-sig")
     df_dropped.to_json(dropped_path.with_suffix(".json"), orient="records", force_ascii=False, indent=2)
-    print(f"  Dropped (no results match): {len(df_dropped):,} → {dropped_path}")
+    print(f"  Dropped (no candidat/list match): {len(df_dropped):,} → {dropped_path}")
 
-    df = df_full[df_full["_merge"] != "right_only"].drop(columns=["_merge"])
+    df = df_full[df_full["_merge"] == "both"].drop(columns=["_merge"])
 
     # Use candidatures party_code where available (more canonical), fall back to results
     df["party_code"] = df["party_code_cand"].combine_first(df["party_code"])
