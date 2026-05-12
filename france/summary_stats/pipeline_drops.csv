@@ -1,0 +1,13 @@
+﻿year,file,drop_reason,source_rows,dropped,tour1_carryover,unexplained_drops,pct_unexplained,real_communes,pct_non_commune,pct_no_age_gender,pct_no_income
+2008,plus_1000_tour1,no_match,9263,1237,0,1237,13.35,2448,5.92,0.78,0.0
+2008,plus_1000_tour2,tour1_loser_or_no_match,2792,323,48,275,9.85,795,9.56,0.63,0.0
+2014,plus_1000_tour1,no_match,22899,0,0,0,0.0,9663,2.51,1.17,0.02
+2014,plus_1000_tour2,commune_not_in_result,25553,925,0,925,3.62,1675,7.46,0.36,0.0
+2014,less_1000_tour1,no_match,293259,0,0,0,0.0,26687,0.21,2.53,13.7
+2014,less_1000_tour2,no_match,60919,0,0,0,0.0,4751,0.55,2.46,12.04
+2020,plus_1000_tour1,no_match,544648,23327,0,23327,4.28,9825,0.0,0.01,0.02
+2020,plus_1000_tour2,tour1_loser_or_no_match,544648,432158,408831,23327,4.28,1340,0.0,0.0,0.07
+2020,less_1000_tour1,no_match,356419,25,0,25,0.01,24934,0.14,0.05,14.22
+2020,less_1000_tour2,tour1_loser_or_no_match,63609,26013,26010,3,0.0,3173,0.41,0.16,14.06
+2026,tour1,no_match,889142,0,0,0,0.0,34904,0.0,0.15,10.59
+2026,tour2,tour1_loser_or_no_match,183333,0,0,0,0.0,1526,0.0,2.56,4.72

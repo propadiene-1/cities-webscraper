@@ -1,6 +1,6 @@
 .DS_Store
 __pycache__
-/archive
+archive/
 
 france_2001/
 france_2008/
@@ -22,3 +22,7 @@ data/
 *.pyc
 .env
 venv/
+
+data/raw/
+output/
+.pytest_cache/

@@ -1,0 +1,100 @@
+DATA GAPS AND EXPLANATIONS
+==========================
+See pipeline_drops.csv for the numbers, unmatched_communes.csv for the full
+list of unmatched codes, and unmatched_real_communes.csv for the same list
+narrowed to real INSEE communes (i.e. excluding non-commune Z* codes).
+
+Election coverage
+-----------------
+- 2008: plus_1000 only (no less_1000 results published by the Interior
+  Ministry); only list-head per list — `elected` is 100% NaN since the
+  source doesn't carry that flag.
+- 2014 / 2020: both plus_1000 and less_1000, both tours.
+- 2026: single results file per tour (no plus_1000 / less_1000 split — all
+  communes use list voting under the post-2020 rules).
+
+Census vintage (BTT TD_POP1A) per election year
+-----------------------------------------------
+- 2008 election -> BTT 2008.  BTT 2008 suppresses very small communes
+  (NB=0), so for <2000-pop communes `merge_btt_census.py` falls back to
+  `dossier_complet.csv` P11 (2011 census) — close enough proxy.
+- 2014 election -> BTT 2014.
+- 2020 election -> BTT 2019 (closest published vintage; 2020/21 not released
+  separately for the BTT product).
+- 2026 election -> BTT 2022 (latest available). 52 communes in 2026 tour 1
+  have no BTT match because they were created (communes nouvelles) or
+  re-coded after Jan 2022.
+
+Income vintage (FILOSOFI) per election year
+-------------------------------------------
+- 2008 -> FILOSOFI 2012 (earliest published vintage; 2008–2011 income data
+  doesn't exist in the FILOSOFI series).
+- 2014 -> FILOSOFI 2014.
+- 2020 -> FILOSOFI 2019.
+- 2026 -> FILOSOFI 2021 — *FILOSOFI 2022 was never released by INSEE* (data
+  quality issues after the abolition of taxe d'habitation in 2023). So
+  2026 income is two years older than the election.
+- ~3,500–3,700 small communes per year have no `poverty_rate` and often no
+  `median_income`: FILOSOFI suppresses statistics for communes below the
+  privacy threshold (roughly <25 fiscal households). This is structural,
+  not a pipeline bug.
+
+Source-data corruption
+----------------------
+- France 2014 plus_1000 source `.txt` files (Interior Ministry) ship with
+  literal U+FFFD bytes (`ef bf bd`) in accented commune/candidate names —
+  the corruption is in the upstream file, not introduced by our pipeline.
+  Affects 4,116–4,324 rows per file in commune_name / last_name /
+  first_name / list_name. Fix would require re-fetching from data.gouv.fr.
+
+Non-commune codes ("DOM-TOM")
+-----------------------------
+- 2008–2020 results files identify overseas communes with Interior
+  Ministry "Z*" codes (ZA=Guadeloupe, ZB=Martinique, ZC=Guyane,
+  ZD=Réunion, ZM=Mayotte, ZN=Saint-Pierre-et-Miquelon, ZP=Polynésie,
+  ZS=Saint-Martin / Saint-Barthélemy). These are NOT INSEE commune codes;
+  verified 0/314 distinct Z* codes appear as CODGEO in any BTT vintage we
+  use. Without a Z->INSEE crosswalk they're un-matchable. Reported as
+  `pct_non_commune` in pipeline_drops.csv (% of real communes per file)
+  and excluded from the age/gender and income gap percentages by design.
+- 2020 plus_1000 (both tours) has zero Z* rows — overseas communes are
+  generally <1000-pop and thus only appear in the less_1000 files for
+  2008/2014/2020.
+- 2026 election switched to INSEE 97x/98x codes — most 97x DO match
+  BTT/FILOSOFI; 98x (Nouvelle-Calédonie, Polynésie, Wallis-et-Futuna,
+  Saint-Pierre-et-Miquelon) are real INSEE codes but INSEE doesn't publish
+  BTT or FILOSOFI for them. So 33 communes / 4,918 rows in 2026 tour 1
+  have full election data but no demographics — these show up in the
+  `pct_no_age_gender` / `pct_no_income` columns.
+
+Tour-2 "drops" are mostly tour-1 attrition, not data loss
+---------------------------------------------------------
+- The huge dropped_outputs/ counts for tour-2 files (e.g. 432,158 for 2020
+  plus_1000_tour2) are dominated by tour-1 candidates who didn't advance.
+  `pipeline_drops.csv` splits this into `tour1_carryover` (legitimate
+  attrition) and `unexplained_drops` (genuinely unmatched registrations).
+  Only the latter is a data-quality concern.
+
+2026 tour-2 incomplete rows
+---------------------------
+- 60,000 of 183,333 rows in 2026 tour 2 have empty `commune_name`,
+  `list_name`, and `votes`. `process_2026.py` retains tour-1 registration
+  rows that had no tour-2 result instead of dropping them, unlike the
+  other tour-2 scripts. Fixable in `process_2026.py`.
+
+Column-level structural absences
+--------------------------------
+- `party_code` 100% empty in 2014 less_1000_tour1 (column absent in
+  source) and 65% empty in 2026 tour 1.
+- `list_name` not present in less_1000 files (less_1000 communes use
+  individual voting, not list voting — column structurally inapplicable).
+- `elected` 100% NaN in both 2008 files (source field is always 0).
+
+Crosswalk usage
+---------------
+- `new_france_census/table_passage_annuelle_2026.xlsx` is the INSEE commune
+  code crosswalk 2003-2026. Used only for the FILOSOFI join when election
+  year and FILOSOFI vintage have different geographies (e.g. 2026->2021:
+  128 codes translated). The BTT join uses the same-year vintage, so no
+  crosswalk patching happens there (verified 0 patches across all 12
+  files — the previous fallback block was dead code and was removed).
